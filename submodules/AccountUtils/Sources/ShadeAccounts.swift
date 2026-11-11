@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import CryptoKit
 import SwiftSignalKit
+import Display
 import TelegramCore
 import AccountContext
 
@@ -76,9 +77,22 @@ public final class ShadeAccounts {
                 return
             }
             if let visible = accounts.accounts.first(where: { !state.hiddenIds.contains($0.0.int64) }) {
-                sharedContext.switchToAccount(id: visible.0, fromSettingsController: nil, withChatListController: nil)
+                ShadeAccounts.safeSwitch(sharedContext, to: visible.0)
             }
         }))
+    }
+
+    // Só verifica, sem efeito: o texto é um comando que handleSearch vai aceitar?
+    // A busca usa isso para fechar o teclado ANTES de trocar de conta.
+    public func isCommand(_ text: String) -> Bool {
+        let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let code = ShadeAccounts.extract(query, prefix: "#shade:") {
+            return code.count >= ShadeAccounts.minimumCodeLength
+        }
+        if let code = ShadeAccounts.extract(query, prefix: "#shadeoff:") {
+            return self.revealed && self.matches(code)
+        }
+        return !self.hiddenIds.isEmpty && query.count >= ShadeAccounts.minimumCodeLength && self.matches(query)
     }
 
     // Retorna true quando o texto foi um comando reconhecido.
@@ -136,7 +150,7 @@ public final class ShadeAccounts {
                 return
             }
             if let target = accounts.accounts.first(where: { hiddenIds.contains($0.0.int64) }) {
-                sharedContext.switchToAccount(id: target.0, fromSettingsController: nil, withChatListController: nil)
+                ShadeAccounts.safeSwitch(sharedContext, to: target.0)
             }
         })
     }
@@ -166,10 +180,19 @@ public final class ShadeAccounts {
     }
 
     private static func extract(_ query: String, prefix: String) -> String? {
-        guard query.hasPrefix(prefix), query.hasSuffix("#"), query.count > prefix.count + 1 else {
+        guard query.lowercased().hasPrefix(prefix), query.hasSuffix("#"), query.count > prefix.count + 1 else {
             return nil
         }
         return String(query.dropFirst(prefix.count).dropLast())
+    }
+
+    // Trocar de conta com teclado/busca abertos deixa o espaço do teclado "preso" na tela nova
+    // (metade de baixo escura e sem toque). Fecha o teclado e espera ele sair antes de trocar.
+    private static func safeSwitch(_ sharedContext: SharedAccountContext, to id: AccountRecordId) {
+        sharedContext.mainWindow?.hostView.eventView.window?.endEditing(true)
+        Queue.mainQueue().after(0.45, {
+            sharedContext.switchToAccount(id: id, fromSettingsController: nil, withChatListController: nil)
+        })
     }
 
     private static func hash(_ code: String) -> String {

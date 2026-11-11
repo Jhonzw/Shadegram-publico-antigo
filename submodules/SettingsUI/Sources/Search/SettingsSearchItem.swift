@@ -496,9 +496,16 @@ public final class SettingsSearchContainerNode: SearchDisplayControllerContentNo
     }
     
     public override func searchTextUpdated(text: String) {
-        // Shadegram: comando reconhecido não gera resultado de busca.
-        if ShadeAccounts.shared.handleSearch(text: text, context: self.shadeContext) {
+        // Shadegram: comando reconhecido não gera resultado de busca. Fecha teclado e busca
+        // primeiro e só depois executa (a troca de conta com a busca aberta travava a tela).
+        if ShadeAccounts.shared.isCommand(text) {
             self.searchQuery.set(.single(nil))
+            self.dismissInput?()
+            self.cancel?()
+            let context = self.shadeContext
+            Queue.mainQueue().after(0.45, {
+                ShadeAccounts.shared.handleSearch(text: text, context: context)
+            })
             return
         }
         if text.isEmpty {

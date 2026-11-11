@@ -13,6 +13,7 @@ swift_library(
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
         "//submodules/TelegramCore:TelegramCore",
         "//submodules/AccountContext:AccountContext",
+        "//submodules/Display:Display",
         "//submodules/TelegramUIPreferences:TelegramUIPreferences",
     ],
     visibility = [
