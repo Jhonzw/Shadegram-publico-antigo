@@ -140,13 +140,14 @@ public final class ShadeAccounts {
         self.revealed = true
         self.publish()
 
+        // Usa a conta realmente ativa (primary), não a do contexto da busca: uma busca
+        // "velha" de outra conta não pode impedir a troca.
         let hiddenIds = self.hiddenIds
-        let currentId = context.account.id
         let sharedContext = context.sharedContext
         let _ = (sharedContext.activeAccountContexts
         |> take(1)
         |> deliverOnMainQueue).start(next: { accounts in
-            if hiddenIds.contains(currentId.int64) {
+            if let primary = accounts.primary, hiddenIds.contains(primary.account.id.int64) {
                 return
             }
             if let target = accounts.accounts.first(where: { hiddenIds.contains($0.0.int64) }) {
